@@ -2,6 +2,12 @@
 	"folders": [
 		{
 			"path": "."
+		},
+		{
+			"path": "/Users/z042690/workspace/test_face_go"
+		},
+		{
+			"path": "/Users/z042690/workspace/detect_faces"
 		}
 	],
 	"settings": {
@@ -19,7 +25,47 @@
 			"type_traits": "cpp",
 			"typeinfo": "cpp",
 			"algorithm": "cpp",
-			"vector": "cpp"
+			"vector": "cpp",
+			"__bit_reference": "cpp",
+			"__debug": "cpp",
+			"__functional_base": "cpp",
+			"__locale": "cpp",
+			"__mutex_base": "cpp",
+			"__split_buffer": "cpp",
+			"__string": "cpp",
+			"__threading_support": "cpp",
+			"__tuple": "cpp",
+			"atomic": "cpp",
+			"bitset": "cpp",
+			"cctype": "cpp",
+			"chrono": "cpp",
+			"cmath": "cpp",
+			"cstdarg": "cpp",
+			"cstdint": "cpp",
+			"cstdio": "cpp",
+			"cstdlib": "cpp",
+			"cstring": "cpp",
+			"ctime": "cpp",
+			"cwchar": "cpp",
+			"cwctype": "cpp",
+			"functional": "cpp",
+			"iomanip": "cpp",
+			"ios": "cpp",
+			"iosfwd": "cpp",
+			"istream": "cpp",
+			"iterator": "cpp",
+			"limits": "cpp",
+			"locale": "cpp",
+			"memory": "cpp",
+			"mutex": "cpp",
+			"numeric": "cpp",
+			"ratio": "cpp",
+			"streambuf": "cpp",
+			"string": "cpp",
+			"string_view": "cpp",
+			"system_error": "cpp",
+			"tuple": "cpp",
+			"utility": "cpp"
 		}
 	}
 }

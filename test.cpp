@@ -15,22 +15,56 @@ int main(int argc, char * argv[]) {
     return 0;
 }
 
+
+std::ostream & operator<<(std::ostream & os, std::vector<double> const & o) {
+    os << "[ ";
+    for (auto const & x : o) {
+        os << x << " ";
+    }
+    return os << "]";
+}
+
 void test_multi_modal() {
     std::random_device rd{};
     std::mt19937 gen{rd()};
-    std::normal_distribution<> d1{-50, 2};
-    std::normal_distribution<> d2{30, 1};
-    std::normal_distribution<> d3{100, 1};
+    std::normal_distribution<> d11{-50, 2};
+    std::normal_distribution<> d21{30, 1};
+    std::normal_distribution<> d31{100, 1};
+    std::normal_distribution<> d12{-20, 1};
+    std::normal_distribution<> d22{0, 2};
+    std::normal_distribution<> d32{-10, 3};
 
-    multi_modal<float> mm(15);
+    // multi_modal<float> mm(10);
 
-    for(int n = 0; n < 30000; n++) {
+    // for(int n = 0; n < 300; n++) {
+    //     switch (gen() % 3) {
+    //     case 0: mm.insert(d1(gen)); break;
+    //     case 1: mm.insert(d2(gen)); break;
+    //     case 2: mm.insert(d3(gen)); break;
+    //     }
+    // }
+
+    multi_modal<std::vector<double>> mm(10);
+
+    std::vector<double> v(2);
+    for(int n = 0; n < 300; n++) {
         switch (gen() % 3) {
-        case 0: mm.insert(d1(gen)); break;
-        case 1: mm.insert(d2(gen)); break;
-        case 2: mm.insert(d3(gen)); break;
+        case 0:
+            v[0] = d11(gen);
+            v[1] = d12(gen);
+            break;
+        case 1:
+            v[0] = d21(gen);
+            v[1] = d22(gen);
+            break;
+        case 2:
+            v[0] = d31(gen);
+            v[1] = d32(gen);
+            break;
         }
+        mm.insert(v);
     }
+
 
     // mm.visit_children([](auto const & parent, auto const & left, auto const & right, size_t depth) {
     //     for(int d = (int)depth; d > 0; d-=1) std::cout << " ";
@@ -58,6 +92,7 @@ void test_multi_modal() {
         std::cout << d.mean << " / " << d.standard_deviation() << " # " << d.count << "\n";
     }
 }
+
 
 
 void test_distributions() {
