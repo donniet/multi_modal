@@ -6,6 +6,8 @@
 #include <iostream>
 #include <limits>
 #include <vector>
+#include <algorithm>
+#include <tuple>
 
 const double sqrt2 = 1.414213562373095;
 const double pi = 3.141592653589793;
@@ -92,86 +94,86 @@ template<typename X> struct distribution {
   }
 };
 
-template<typename T> struct distribution<std::vector<T>> {
-  std::vector<T> mean;
-  std::vector<double> m2;
-  size_t count;
+// template<typename T> struct distribution<std::vector<T>> {
+//   std::vector<T> mean;
+//   std::vector<double> m2;
+//   size_t count;
 
-  distribution(std::vector<T> const & p) 
-    : mean(p), count(1) 
-  { 
-    m2 = zero();
-  }
+//   distribution(std::vector<T> const & p) 
+//     : mean(p), m2(p.size()), count(1) 
+//   { 
+//     std::fill(m2.begin(), m2.end(), 0.);
+//   }
 
-  static distribution<std::vector<T>> from_standard_deviation(std::vector<T> const & mean, std::vector<double> const & standard_deviation, size_t count) {
-    std::vector<double> m2(standard_deviation);
-    std::transform(standard_deviation.begin(), standard_deviation.end(), m2.begin(), [count](auto const & stddev) -> double {
-      return stddev * stddev * (double)count;
-    });
+//   static distribution<std::vector<T>> from_standard_deviation(std::vector<T> const & mean, std::vector<double> const & standard_deviation, size_t count) {
+//     std::vector<double> m2(standard_deviation);
+//     std::transform(standard_deviation.begin(), standard_deviation.end(), m2.begin(), [count](auto const & stddev) -> double {
+//       return stddev * stddev * (double)count;
+//     });
 
-    return distribution<std::vector<T>>{mean, m2, count};
-  }
+//     return distribution<std::vector<T>>{mean, m2, count};
+//   }
 
-  std::vector<double> variance() const {
-    std::vector<double> variance(m2);
-    std::transform(m2.begin(), m2.end(), variance.begin(), [&](auto const & m) {
-      return m / (double)count;
-    });
-    return variance;
-  }
+//   std::vector<double> variance() const {
+//     std::vector<double> variance(m2);
+//     std::transform(m2.begin(), m2.end(), variance.begin(), [&](auto const & m) {
+//       return m / (double)count;
+//     });
+//     return variance;
+//   }
 
-  double variance_determinant() const {
-    std::vector<double> var = variance();
-    return std::accumulate(var.begin(), var.end(), 1., std::multiplies<double>{});
-  }
+//   double variance_determinant() const {
+//     std::vector<double> var = variance();
+//     return std::accumulate(var.begin(), var.end(), 1., std::multiplies<double>{});
+//   }
 
-  double standard_deviation() const {
-    return std::sqrt(variance_determinant());
-  }
+//   double standard_deviation() const {
+//     return std::sqrt(variance_determinant());
+//   }
 
-  // double likelihood(std::vector<T> const & x) {
-  //   std::vector<double> variance(m2);
-  //   std::transform(m2.begin(), m2.end(), variance.begin(), [count](auto const & m) {
-  //     return m / (double)count;
-  //   });
+//   // double likelihood(std::vector<T> const & x) {
+//   //   std::vector<double> variance(m2);
+//   //   std::transform(m2.begin(), m2.end(), variance.begin(), [count](auto const & m) {
+//   //     return m / (double)count;
+//   //   });
 
-  //   std::vector<T> diff(mean);
-  //   std::transform(mean.begin(), mean.end(), x.begin(), diff.begin(), std::minus<double>{});
+//   //   std::vector<T> diff(mean);
+//   //   std::transform(mean.begin(), mean.end(), x.begin(), diff.begin(), std::minus<double>{});
 
-  //   std::vector<double> scaled(m2);
-  //   std::transform(diff.begin(), diff.end(), variance.begin(), scaled.begin(), [count](auto const & diff, double v) {
-  //     return diff * diff / v;
-  //   });
-  //   double exp = std::accumulate(scaled.begin(), scaled.end(), 0.);
+//   //   std::vector<double> scaled(m2);
+//   //   std::transform(diff.begin(), diff.end(), variance.begin(), scaled.begin(), [count](auto const & diff, double v) {
+//   //     return diff * diff / v;
+//   //   });
+//   //   double exp = std::accumulate(scaled.begin(), scaled.end(), 0.);
 
-  //   double det = std::accumulate(variance.begin(), variance.end(), 1., std::multiplies<double>{});
+//   //   double det = std::accumulate(variance.begin(), variance.end(), 1., std::multiplies<double>{});
 
-  //   double g = std::exp(-exp / 2.) / 
-  // }
+//   //   double g = std::exp(-exp / 2.) / 
+//   // }
 
-  double density(std::vector<T> const & x) const {
-    auto var = variance();
-    auto det = variance_determinant();
+//   double density(std::vector<T> const & x) const {
+//     auto var = variance();
+//     auto det = variance_determinant();
 
-    if (det < eps)
-      return 0.;
+//     if (det < eps)
+//       return 0.;
 
-    std::vector<T> val(mean);
-    std::transform(mean.begin(), mean.end(), x.begin(), val.begin(), std::minus<double>{});
-    std::transform(val.begin(), val.end(), var.begin(), val.begin(), [](auto const & v, auto const & s) -> double {
-      return v * v / s;
-    });
-    double exponent = std::accumulate(val.begin(), val.end(), 0., std::plus<double>{});
+//     std::vector<T> val(mean);
+//     std::transform(mean.begin(), mean.end(), x.begin(), val.begin(), std::minus<double>{});
+//     std::transform(val.begin(), val.end(), var.begin(), val.begin(), [](auto const & v, auto const & s) -> double {
+//       return v * v / s;
+//     });
+//     double exponent = std::accumulate(val.begin(), val.end(), 0., std::plus<double>{});
 
-    return std::exp(-exponent / 2.) / std::pow(sqrtpi * sqrt2, x.size()) / std::sqrt(det);
-  }
+//     return std::exp(-exponent / 2.) / std::pow(sqrtpi * sqrt2, x.size()) / std::sqrt(det);
+//   }
 
-  std::vector<T> zero() {
-    std::vector<T> zed(mean.size());
-    std::fill(zed.begin(), zed.end(), 0.);
-    return zed;
-  }
-};
+//   std::vector<T> zero() {
+//     std::vector<T> zed(mean.size());
+//     std::fill(zed.begin(), zed.end(), 0.);
+//     return zed;
+//   }
+// };
 
 template<typename T>
 std::ostream& operator<<(std::ostream & os, distribution<T> const & dist) {
@@ -257,23 +259,23 @@ double mixture_error(distribution<X> const & a, distribution<X> const & b) {
   return ea * a.standard_deviation() + eb * b.standard_deviation() + ec * c.standard_deviation();
 }
 
-template<typename T>
-double mixture_error(distribution<std::vector<T>> const & a, distribution<std::vector<T>> const & b) {
-  distribution<std::vector<T>> c = mix(a, b);
+// template<typename T>
+// double mixture_error(distribution<std::vector<T>> const & a, distribution<std::vector<T>> const & b) {
+//   distribution<std::vector<T>> c = mix(a, b);
 
-  double alpha = (double)a.count / (double)c.count;
+//   double alpha = (double)a.count / (double)c.count;
 
-  double scale = std::pow(sqrtpi * sqrt2, a.mean.size());
-  double astd = std::sqrt(a.variance_determinant()),
-         bstd = std::sqrt(b.variance_determinant()),
-         cstd = std::sqrt(c.variance_determinant());
+//   double scale = std::pow(sqrtpi * sqrt2, a.mean.size());
+//   double astd = std::sqrt(a.variance_determinant()),
+//          bstd = std::sqrt(b.variance_determinant()),
+//          cstd = std::sqrt(c.variance_determinant());
 
-  double ea = std::abs(alpha / scale / astd + (1. - alpha) * b.density(a.mean) - c.density(a.mean)),
-         eb = std::abs(alpha * a.density(b.mean) + (1. - alpha) / scale / bstd - c.density(b.mean)),
-         ec = std::abs(alpha * a.density(c.mean) + (1. - alpha) * b.density(c.mean) - 1. / scale / cstd);
+//   double ea = std::abs(alpha / scale / astd + (1. - alpha) * b.density(a.mean) - c.density(a.mean)),
+//          eb = std::abs(alpha * a.density(b.mean) + (1. - alpha) / scale / bstd - c.density(b.mean)),
+//          ec = std::abs(alpha * a.density(c.mean) + (1. - alpha) * b.density(c.mean) - 1. / scale / cstd);
 
-  return ea * astd + eb * bstd + ec * cstd;
-}
+//   return ea * astd + eb * bstd + ec * cstd;
+// }
 
 
 template<typename X>
@@ -306,34 +308,34 @@ distribution<X> mix(distribution<X> const & a, distribution<X> const & b) {
   return ret;
 }
 
-template<typename T>
-distribution<std::vector<T>> mix(distribution<std::vector<T>> const & a, distribution<std::vector<T>> const & b) {
-  static norm<std::vector<T>> norm;
-  static std::plus<std::vector<T>> plus;
-  static std::minus<std::vector<T>> minus;
+// template<typename T>
+// distribution<std::vector<T>> mix(distribution<std::vector<T>> const & a, distribution<std::vector<T>> const & b) {
+//   static norm<std::vector<T>> norm;
+//   static std::plus<std::vector<T>> plus;
+//   static std::minus<std::vector<T>> minus;
 
-  size_t count = a.count + b.count;
-  double alpha = (double)a.count / (double)count;
+//   size_t count = a.count + b.count;
+//   double alpha = (double)a.count / (double)count;
 
-  std::vector<T> mean = plus(
-    scale(a.mean, alpha),
-    scale(b.mean, 1. - alpha)
-  );
+//   std::vector<T> mean = plus(
+//     scale(a.mean, alpha),
+//     scale(b.mean, 1. - alpha)
+//   );
 
-  std::vector<double> m2(a.m2);
+//   std::vector<double> m2(a.m2);
 
-  for (int i = 0; i < m2.size(); i++) {
-    double a_dist = a.mean[i] - mean[i];
-    double b_dist = b.mean[i] - mean[i];
-    m2[i] = a.m2[i] + (double)a.count * a_dist * a_dist + 
-            b.m2[i] + (double)b.count * b_dist * b_dist;
-  }
+//   for (int i = 0; i < m2.size(); i++) {
+//     double a_dist = a.mean[i] - mean[i];
+//     double b_dist = b.mean[i] - mean[i];
+//     m2[i] = a.m2[i] + (double)a.count * a_dist * a_dist + 
+//             b.m2[i] + (double)b.count * b_dist * b_dist;
+//   }
 
-  distribution<std::vector<T>> ret(mean);
-  ret.m2 = m2;
-  ret.count = count;
-  return ret;
-}
+//   distribution<std::vector<T>> ret(mean);
+//   ret.m2 = m2;
+//   ret.count = count;
+//   return ret;
+// }
 
 template<typename X>
 distribution<X> unmix(distribution<X> const & c, distribution<X> const & b) {
@@ -438,17 +440,17 @@ private:
     stack.push_back(n);
     while(!stack.empty()) {
       node * cur = stack.back();
+      stack.pop_back();
       if (cur->left != nullptr) {
         stack.push_back(cur->left);
         cur->left = nullptr;
-      } else if (cur->right != nullptr) {
+      }
+      if (cur->right != nullptr) {
         stack.push_back(cur->right);
         cur->right = nullptr;
-      } else {
-        stack.pop_back();
-        delete cur;
-        count--;
       }
+      delete cur;
+      count--;
     }
   }
 
@@ -468,29 +470,36 @@ private:
     }
   }
 
-public:
-  std::vector<distribution<X>> extract_peaks() const {
-    std::vector<std::pair<node*,node*>> stack;
-    stack.push_back({root,nullptr});
-    node * cur, * parent;
-
-    std::vector<distribution<X>> ret;
-
-    while(!stack.empty()) {
-      std::tie(cur, parent) = stack.back();
-      stack.pop_back();
-
-      if (cur->left == nullptr) continue;
-      
-      if (parent != nullptr && cur->error < parent->error) {
-        ret.push_back(cur->dist);
-        continue;
-      } 
-
-      stack.push_back({cur->left, cur});
-      stack.push_back({cur->right, cur});
+  bool extract_peaks_helper(std::vector<distribution<X>> & peaks, node * cur, node * parent) const {
+    if (parent != nullptr && cur->error < 0.5 * parent->error) {
+      peaks.push_back(cur->dist);
+      return true;
     }
 
+    bool left = false, right = false;
+    if (cur->left != nullptr) {
+      left = extract_peaks_helper(peaks, cur->left, cur);
+      right = extract_peaks_helper(peaks, cur->right, cur);
+
+      if (left && !right) {
+        peaks.push_back(cur->right->dist);
+      } else if (!left && right) {
+        peaks.push_back(cur->left->dist);
+      }
+    }
+
+    // add the root if we haven't added anything else
+    if (parent == nullptr && peaks.size() == 0) {
+      peaks.push_back(cur->dist);
+    }
+
+    return left || right;
+  }
+
+public:
+  std::vector<distribution<X>> extract_peaks() const {
+    std::vector<distribution<X>> ret;
+    extract_peaks_helper(ret, root, nullptr);
     return ret;
   }
 

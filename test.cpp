@@ -27,12 +27,12 @@ std::ostream & operator<<(std::ostream & os, std::vector<double> const & o) {
 void test_multi_modal() {
     std::random_device rd{};
     std::mt19937 gen{rd()};
-    std::normal_distribution<> d11{-50, 2};
-    std::normal_distribution<> d21{30, 1};
-    std::normal_distribution<> d31{100, 1};
-    std::normal_distribution<> d12{-20, 1};
-    std::normal_distribution<> d22{0, 2};
-    std::normal_distribution<> d32{-10, 3};
+    std::normal_distribution<> d11{-5, 1.5};
+    std::normal_distribution<> d21{3, 1.5};
+    std::normal_distribution<> d31{8, 1};
+    std::normal_distribution<> d12{2, 1.5};
+    std::normal_distribution<> d22{0, 1.5};
+    std::normal_distribution<> d32{-1, 1};
 
     // multi_modal<float> mm(10);
 
@@ -44,10 +44,10 @@ void test_multi_modal() {
     //     }
     // }
 
-    multi_modal<std::vector<double>> mm(10);
+    multi_modal<std::vector<double>> mm(100);
 
     std::vector<double> v(2);
-    for(int n = 0; n < 300; n++) {
+    for(int n = 0; n < 30000; n++) {
         switch (gen() % 3) {
         case 0:
             v[0] = d11(gen);
