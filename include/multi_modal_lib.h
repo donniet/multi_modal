@@ -7,23 +7,24 @@ extern "C" {
 
 typedef struct {
     mm_vector_float * ds;
-    size_t dimensions;
+    unsigned long dimensions;
 } multi_modal_wrapper;
 
 typedef struct {
     float * mean;
-    size_t mean_size;
+    unsigned long mean_size;
     float standard_deviation;
-    size_t sample_count;
+    unsigned long sample_count;
+    unsigned long id;
 } distribution_wrapper;
 
-multi_modal_wrapper * mm_create(size_t dimensions, size_t maximum_nodes);
+multi_modal_wrapper * mm_create(unsigned long dimensions, unsigned long maximum_nodes);
 void mm_destroy(multi_modal_wrapper * wrapper);
 
-void mm_insert(multi_modal_wrapper * wrapper, float * sample, size_t dimensions);
-size_t mm_get_count(multi_modal_wrapper * wrapper);
-void mm_extract_peaks(multi_modal_wrapper * wrapper, distribution_wrapper ** wrappers, size_t * wrapper_count);
-void mm_destroy_peaks(multi_modal_wrapper * wrapper, distribution_wrapper * wrappers, size_t wrapper_count);
+void mm_insert(multi_modal_wrapper * wrapper, float * sample, unsigned long dimensions);
+unsigned long mm_get_count(multi_modal_wrapper * wrapper);
+void mm_extract_peaks(multi_modal_wrapper * wrapper, distribution_wrapper ** wrappers, unsigned long * wrapper_count);
+void mm_destroy_peaks(multi_modal_wrapper * wrapper, distribution_wrapper * wrappers, unsigned long wrapper_count);
 
 
 }

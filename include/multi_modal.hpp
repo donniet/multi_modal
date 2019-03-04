@@ -8,6 +8,9 @@
 #include <vector>
 #include <algorithm>
 #include <tuple>
+#include <map>
+
+using std::pair;
 
 const double sqrt2 = 1.414213562373095;
 const double pi = 3.141592653589793;
@@ -58,13 +61,16 @@ namespace std {
 template<typename X> struct distribution {
   X mean;
   double m2;
-  size_t count;
+  unsigned long count;
 
   distribution(X const & p)
     : mean(p), m2(0.), count(1)
   { }
+  distribution()
+    : mean(), m2(0.), count(0)
+  { }
 
-  static distribution<X> from_standard_deviation(X const & mean, double standard_deviation, size_t count) {
+  static distribution<X> from_standard_deviation(X const & mean, double standard_deviation, unsigned long count) {
     distribution<X> ret(mean);
     ret.m2 = standard_deviation * standard_deviation * count;
     ret.count = count;
@@ -97,7 +103,7 @@ template<typename X> struct distribution {
 // template<typename T> struct distribution<std::vector<T>> {
 //   std::vector<T> mean;
 //   std::vector<double> m2;
-//   size_t count;
+//   unsigned long count;
 
 //   distribution(std::vector<T> const & p) 
 //     : mean(p), m2(p.size()), count(1) 
@@ -105,7 +111,7 @@ template<typename X> struct distribution {
 //     std::fill(m2.begin(), m2.end(), 0.);
 //   }
 
-//   static distribution<std::vector<T>> from_standard_deviation(std::vector<T> const & mean, std::vector<double> const & standard_deviation, size_t count) {
+//   static distribution<std::vector<T>> from_standard_deviation(std::vector<T> const & mean, std::vector<double> const & standard_deviation, unsigned long count) {
 //     std::vector<double> m2(standard_deviation);
 //     std::transform(standard_deviation.begin(), standard_deviation.end(), m2.begin(), [count](auto const & stddev) -> double {
 //       return stddev * stddev * (double)count;
@@ -180,28 +186,9 @@ std::ostream& operator<<(std::ostream & os, distribution<T> const & dist) {
   return os << "{ " << dist.mean << " / " << dist.standard_deviation() << " # " << dist.count << " }";
 }
 
-// double mixture_constant(double mux, double varx, double muy, double vary) {
-//   double ret = 0.;
-//   ret = (mux * vary + muy * varx) / (varx + vary) / 2. / varx / vary;
-//   ret = (ret * ret);
-//   ret += (mux * mux * vary + muy * muy * varx) / 2. / varx / vary;
-//   return std::exp(-ret);
-// }
-
-double mixture_constant(double mux, double varx, double muy, double vary) {
-  double ret = mux - muy;
-  ret *= ret;
-
-  std::cout << "\nmu2: " << ret << "\n";
-
-  ret *= varx * vary;
-  ret /= (varx + vary);
-  return std::exp(ret);
-}
-
 // L2 norm
 template<typename X> 
-double mixture_error2(distribution<X> const & a, distribution<X> const & b) {
+double mixture_error(distribution<X> const & a, distribution<X> const & b) {
   static norm<X> norm;
   static std::minus<X> minus;
 
@@ -210,34 +197,36 @@ double mixture_error2(distribution<X> const & a, distribution<X> const & b) {
   double mua = norm(minus(a.mean, c.mean));
   double mub = norm(minus(b.mean, c.mean));
 
-  // std::cout << "\nmua: " << mua << " mub: " << mub << "\n";  
-
-  double Cab = mixture_constant(mua, a.variance(), mub, b.variance());
-  double Cac = mixture_constant(mua, a.variance(), 0, c.variance());
-  double Cbc = mixture_constant(mub, b.variance(), 0, c.variance());
-
-  // std::cout << "Cab " << Cab << " Cac " << Cac << " Cbc " << Cbc << "\n";
-
   double alpha = (double)a.count / (double)c.count;
 
+  double vara = a.variance();
+  double varb = b.variance();
+  double stda = a.standard_deviation();
+  double stdb = b.standard_deviation();
+
   double ret = 0.;
-  ret += alpha * alpha * a.standard_deviation();
-  ret += (1. - alpha) * (1. - alpha) * b.standard_deviation();
-  ret += c.standard_deviation();
-  ret = ret / 2. / sqrtpi;
 
-  double ret2 = 0.;
-  ret2 += Cab * 2. * alpha * (1. - alpha) * a.standard_deviation() * b.standard_deviation() / std::sqrt(a.variance() + b.variance());
-  ret2 -= Cac * 2 * alpha * a.standard_deviation() * c.standard_deviation() / std::sqrt(a.variance() + c.variance());
-  ret2 -= Cbc * 2 * (1. - alpha) * b.standard_deviation() * c.standard_deviation() / std::sqrt(b.variance() + c.variance());
-  ret2 = ret2 / sqrt2 / sqrtpi;
+  if (vara == 0. || varb == 0.) {
+    return std::numeric_limits<double>::max();
+  }
 
-  return ret + ret2;
+  ret += alpha * alpha / stda +
+         (1. - alpha) * (1. - alpha) / stdb +
+         1. / c.standard_deviation();
+  ret /= sqrt2;
+
+  ret +=   2. * alpha * (1. - alpha) / std::sqrt(vara + varb)
+         - 2. * alpha / std::sqrt(vara + c.variance())
+         - 2. * (1. - alpha) / std::sqrt(varb + c.variance());
+  
+  ret /= sqrt2 / sqrtpi;
+
+  return ret;
 }
 
 // total variational distance sup | (A(+)B) - C | 
 template<typename X>
-double mixture_error(distribution<X> const & a, distribution<X> const & b) {
+double mixture_error2(distribution<X> const & a, distribution<X> const & b) {
   static norm<X> norm;
   static std::minus<X> minus;
 
@@ -284,7 +273,7 @@ distribution<X> mix(distribution<X> const & a, distribution<X> const & b) {
   static std::plus<X> plus;
   static std::minus<X> minus;
 
-  size_t count = a.count + b.count;
+  unsigned long count = a.count + b.count;
 
   // weight factor
   double a_left = (double)a.count / (double)count;
@@ -314,7 +303,7 @@ distribution<X> mix(distribution<X> const & a, distribution<X> const & b) {
 //   static std::plus<std::vector<T>> plus;
 //   static std::minus<std::vector<T>> minus;
 
-//   size_t count = a.count + b.count;
+//   unsigned long count = a.count + b.count;
 //   double alpha = (double)a.count / (double)count;
 
 //   std::vector<T> mean = plus(
@@ -358,7 +347,7 @@ distribution<X> unmix(distribution<X> const & c, distribution<X> const & b) {
   double variance = left_factor  * (c.variance() + left_distance  * left_distance) -
                     right_factor * (b.variance() + right_distance * right_distance);
 
-  size_t count = c.count - b.count;
+  unsigned long count = c.count - b.count;
 
   distribution<X> ret(mean);
   ret.m2 = variance * (double)count;
@@ -372,11 +361,13 @@ template<typename X> class multi_modal {
     distribution<X> dist;
     double error;
     node * left, * right;
+    unsigned long id;
   };
 
   node * root;
-  size_t maximum_nodes;
-  size_t count;
+  unsigned long maximum_nodes;
+  unsigned long count;
+  unsigned long next_id;
 private:
   void insert_helper(node * n, distribution<X> const & dist) {
     static norm<X> norm;
@@ -385,10 +376,12 @@ private:
     if (n->left == nullptr) {
       if (count < maximum_nodes) {
         n->left = new node(*n);
-        n->right = new node{dist, 0, nullptr, nullptr};
+        n->left->id = next_id++;
+        n->right = new node{dist, 0, nullptr, nullptr, next_id++};
         n->dist = mix(n->right->dist, n->left->dist);
         // this could be more expensive
         n->error = mixture_error(n->right->dist, n->left->dist);
+
         count++;
       } else {
         n->dist = mix(n->dist, dist);
@@ -455,10 +448,10 @@ private:
   }
 
   template<typename Visitor> void visit_nodes(Visitor v) const {
-    std::vector<std::pair<node*,size_t>> stack;
+    std::vector<std::pair<node*,unsigned long>> stack;
     stack.push_back({root,0});
     node * cur;
-    size_t depth;
+    unsigned long depth;
     while(!stack.empty()) {
       std::tie(cur, depth) = stack.back();
       stack.pop_back();
@@ -470,9 +463,9 @@ private:
     }
   }
 
-  bool extract_peaks_helper(std::vector<distribution<X>> & peaks, node * cur, node * parent) const {
-    if (parent != nullptr && cur->error < 0.5 * parent->error) {
-      peaks.push_back(cur->dist);
+  bool extract_peaks_helper(std::vector<pair<unsigned long, distribution<X>>> & peaks, node * cur, node * parent) const {
+    if (parent != nullptr && cur->error < parent->error) {
+      peaks.push_back({cur->id, cur->dist});
       return true;
     }
 
@@ -481,35 +474,66 @@ private:
       left = extract_peaks_helper(peaks, cur->left, cur);
       right = extract_peaks_helper(peaks, cur->right, cur);
 
-      if (left && !right) {
-        peaks.push_back(cur->right->dist);
-      } else if (!left && right) {
-        peaks.push_back(cur->left->dist);
-      }
+      // if (left && !right) {
+      //   peaks.push_back(cur->right->dist);
+      // } else if (!left && right) {
+      //   peaks.push_back(cur->left->dist);
+      // }
     }
 
     // add the root if we haven't added anything else
     if (parent == nullptr && peaks.size() == 0) {
-      peaks.push_back(cur->dist);
+      peaks.push_back({cur->id, cur->dist});
     }
 
     return left || right;
   }
 
+  bool find_peak_helper(X const & x, distribution<X> & dist, node * n) const {
+    static norm<X> norm;
+    static std::minus<X> minus;
+
+    bool found = false;
+    if (n->left == nullptr) return false;
+
+    auto left = norm(minus(n->left->dist.mean, dist.mean));
+    auto right = norm(minus(n->right->dist.mean, dist.mean));
+
+    node * chosen = n->left, * other = n->right;
+    if(right < left) {
+      chosen = n->right;
+      other = n->left;
+    }
+
+    if (chosen->error < n->error) {
+      dist = chosen->dist;
+      return true;
+    } 
+
+    bool ret = find_peak_helper(x, dist, chosen);
+
+    if (!ret && other->error < n->error) {
+      dist = chosen->dist;
+      return true;
+    }
+
+    return ret;
+  }
+
 public:
-  std::vector<distribution<X>> extract_peaks() const {
-    std::vector<distribution<X>> ret;
+  std::vector<pair<unsigned long, distribution<X>>> extract_peaks() const {
+    std::vector<pair<unsigned long, distribution<X>>> ret;
     extract_peaks_helper(ret, root, nullptr);
     return ret;
   }
 
   template<typename Visitor> void visit(Visitor v) const {
-    visit_nodes([&v](node * n, size_t depth) -> bool {
+    visit_nodes([&v](node * n, unsigned long depth) -> bool {
       return v(n->dist, depth);
     });
   }
   template<typename Visitor> void visit_children(Visitor v) const {
-    visit_nodes([&v](node * n, size_t depth) -> bool {
+    visit_nodes([&v](node * n, unsigned long depth) -> bool {
       if (n->left == nullptr) return false;
 
       return v(n->dist, n->left->dist, n->right->dist, depth);
@@ -526,14 +550,25 @@ public:
     insert_helper(root, dist);
   }
 
-  size_t get_count() const { return count; }
+  distribution<X> find_peak(X const & x) {
+    distribution<X> ret(x);
 
-  multi_modal(size_t max) 
-    : root(nullptr), maximum_nodes(max), count(0) 
+    if (root == nullptr) {
+      return ret;
+    }
+
+    find_peak_helper(ret, root, 0.);
+    return ret;
+  }
+
+  unsigned long get_count() const { return count; }
+
+  multi_modal(unsigned long max) 
+    : root(nullptr), maximum_nodes(max), count(0), next_id(0)
   {}
 
   multi_modal() 
-    : multi_modal(std::numeric_limits<size_t>::max()) 
+    : multi_modal(std::numeric_limits<unsigned long>::max()) 
   {}
 
   ~multi_modal() { 

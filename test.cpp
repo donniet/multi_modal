@@ -1,8 +1,12 @@
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <iomanip>
 #include <random>
 
 #include "multi_modal.hpp"
+
+using std::pair;
 
 void test_distributions();
 void test_multi_modal();
@@ -27,12 +31,10 @@ std::ostream & operator<<(std::ostream & os, std::vector<double> const & o) {
 void test_multi_modal() {
     std::random_device rd{};
     std::mt19937 gen{rd()};
-    std::normal_distribution<> d11{-5, 1.5};
-    std::normal_distribution<> d21{3, 1.5};
-    std::normal_distribution<> d31{8, 1};
-    std::normal_distribution<> d12{2, 1.5};
-    std::normal_distribution<> d22{0, 1.5};
-    std::normal_distribution<> d32{-1, 1};
+    std::normal_distribution<> d11{-5, 1.5}, d12{2, 1.5};
+    std::normal_distribution<> d21{0, 1.5}, d22{8, 1.5};
+    std::normal_distribution<> d31{1.5, 3}, d32{-7, 3};
+    std::normal_distribution<> d41{7, 1}, d42{4, 1};
 
     // multi_modal<float> mm(10);
 
@@ -44,26 +46,75 @@ void test_multi_modal() {
     //     }
     // }
 
-    multi_modal<std::vector<double>> mm(100);
+    multi_modal<std::vector<double>> mm(1000);
 
     std::vector<double> v(2);
-    for(int n = 0; n < 30000; n++) {
-        switch (gen() % 3) {
+    std::string col = "red";
+
+    int perframe = 25;
+
+    std::vector<pair<std::vector<double>, std::string>> points;
+  
+    for(int n = 0; n < 6001; n++) {
+        switch (gen() % 6) {
         case 0:
+            col = "red";
             v[0] = d11(gen);
             v[1] = d12(gen);
             break;
+        // make this point twice as likely
         case 1:
+        case 2:
+            col = "pink";
             v[0] = d21(gen);
             v[1] = d22(gen);
             break;
-        case 2:
+        case 3:
+            col = "purple";
             v[0] = d31(gen);
             v[1] = d32(gen);
             break;
+        case 4:
+        case 5:
+            col = "blue";
+            v[0] = d41(gen);
+            v[1] = d42(gen);
+            break;
         }
         mm.insert(v);
+        points.push_back({v, col});
+
+        if (n > 0 && n % perframe == 0) {
+            std::stringstream filename;
+            filename << "example_output/frame" << std::setw(4) << std::setfill('0') << (n / perframe) << ".svg";
+
+            std::fstream stream;
+            stream.open(filename.str(), std::ios_base::out);
+            stream << "<svg xmlns=\"http://www.w3.org/2000/svg\" height=\"1200\" width=\"1200\" viewbox=\"0 0 1200 1200\">\n";
+            stream << "<g class=\"frame frame" << (n / perframe) << "\">\n";
+
+            for (auto const & p : points) {
+                stream << "<circle cx=\"" << p.first[0] * 50 + 500 << "\" cy=\"" << p.first[1] * 50 + 500 << "\" r=\"2\" stroke=\"" << p.second << "\" fill=\"" << p.second << "\" stroke-width=\"2\" />\n"; 
+            }
+
+
+            auto peaks = mm.extract_peaks();
+
+            for(auto const & p : peaks) {
+                auto d = p.second;
+                auto x = d.mean[0]*50+500;
+                auto y = d.mean[1]*50+500;
+
+                stream << "<circle cx=\"" << x << "\" cy=\"" << y << "\" r=\"" << 2*d.standard_deviation()*50 << "\" fill=\"rgba(0.7,0.7,0.7,0.1)\" />\n";
+                stream << "<circle cx=\"" << x << "\" cy=\"" << y << "\" r=\"" << d.standard_deviation()*50 << "\" fill=\"rgba(0.5,0.5,0.5,0.1)\" />\n";
+                stream << "<text text-anchor=\"middle\" alignment-baseline=\"middle\" style=\"font: normal 40px sans-serif; stroke: black; fill: white;\" x=\"" << x << "\" y=\"" << y << "\">id: " << p.first << " sig: " << d.standard_deviation() << "</text>\n";
+            }
+
+            stream << "</g>\n";
+            stream << "</svg>\n";
+        }
     }
+    
 
 
     // mm.visit_children([](auto const & parent, auto const & left, auto const & right, size_t depth) {
@@ -86,11 +137,11 @@ void test_multi_modal() {
     //     return true;
     // });
 
-    auto peaks = mm.extract_peaks();
+    // auto peaks = mm.extract_peaks();
 
-    for(auto const & d : peaks) {
-        std::cout << d.mean << " / " << d.standard_deviation() << " # " << d.count << "\n";
-    }
+    // for(auto const & d : peaks) {
+    //     std::cout << d.mean << " / " << d.standard_deviation() << " # " << d.count << "\n";
+    // }
 }
 
 
