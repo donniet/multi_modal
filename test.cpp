@@ -34,7 +34,7 @@ void test_multi_modal() {
     std::normal_distribution<> d11{-5, 1.5}, d12{2, 1.5};
     std::normal_distribution<> d21{0, 1.5}, d22{8, 1.5};
     std::normal_distribution<> d31{1.5, 3}, d32{-7, 3};
-    std::normal_distribution<> d41{7, 1}, d42{4, 1};
+    std::normal_distribution<> d41{7, 2}, d42{4, 2};
 
     // multi_modal<float> mm(10);
 
@@ -51,7 +51,7 @@ void test_multi_modal() {
     std::vector<double> v(2);
     std::string col = "red";
 
-    int perframe = 25;
+    int perframe = 100;
 
     std::vector<pair<std::vector<double>, std::string>> points;
   
@@ -107,7 +107,7 @@ void test_multi_modal() {
 
                 stream << "<circle cx=\"" << x << "\" cy=\"" << y << "\" r=\"" << 2*d.standard_deviation()*50 << "\" fill=\"rgba(0.7,0.7,0.7,0.1)\" />\n";
                 stream << "<circle cx=\"" << x << "\" cy=\"" << y << "\" r=\"" << d.standard_deviation()*50 << "\" fill=\"rgba(0.5,0.5,0.5,0.1)\" />\n";
-                stream << "<text text-anchor=\"middle\" alignment-baseline=\"middle\" style=\"font: normal 40px sans-serif; stroke: black; fill: white;\" x=\"" << x << "\" y=\"" << y << "\">id: " << p.first << " sig: " << d.standard_deviation() << "</text>\n";
+                stream << "<text text-anchor=\"middle\" stroke-width=\"1\" alignment-baseline=\"middle\" style=\"font: normal 40px sans-serif; stroke: black; fill: white;\" x=\"" << x << "\" y=\"" << y << "\">id: " << p.first << " sig: " << d.standard_deviation() << "</text>\n";
             }
 
             stream << "</g>\n";
