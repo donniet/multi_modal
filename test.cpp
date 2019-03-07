@@ -84,6 +84,11 @@ void test_multi_modal() {
         mm.insert(v);
         points.push_back({v, col});
 
+        if (n > 5950) {
+            auto found = mm.find_peak(v);
+            std::cout << col << "[" << v[0] << " " << v[1] << "] found in " << found.first << "[" << found.second.mean[0] << " " << found.second.mean[1] << " / " << found.second.standard_deviation() << "]\n";
+        }
+
         if (n > 0 && n % perframe == 0) {
             std::stringstream filename;
             filename << "example_output/frame" << std::setw(4) << std::setfill('0') << (n / perframe) << ".svg";

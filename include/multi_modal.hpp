@@ -285,11 +285,17 @@ distribution<X> mix(distribution<X> const & a, distribution<X> const & b) {
   );
 
   // distance between means
-  double left_distance  = norm(minus(mean, a.mean));
-  double right_distance = norm(minus(mean, b.mean));
+  // double left_distance  = norm(minus(mean, a.mean));
+  // double right_distance = norm(minus(mean, b.mean));
 
-  double variance = a_left  * (a.variance() + left_distance  * left_distance) +
-                    a_right * (b.variance() + right_distance * right_distance);
+  // double variance = a_left  * (a.variance() + left_distance  * left_distance) +
+  //                   a_right * (b.variance() + right_distance * right_distance);
+
+  // this should be the same as above but more efficient
+  double distance = norm(minus(a.mean, b.mean));
+  double variance = a_left * a.variance() 
+                  + a_right * b.variance() 
+                  + a_left * a_right * distance * distance;
 
   distribution<X> ret(mean);
   ret.m2 = variance * (double)count;
@@ -410,7 +416,13 @@ private:
     if (n->dist.variance() < (*op)->dist.variance()) {
       // handle the case where *op is a leaf
       if ((*op)->left == nullptr) {
+        // delete this node and merge the children into a new leaf?
+        // bubble it up somehow?
+        // is the other side a leaf?
 
+        if ((*other)->left != nullptr) {
+
+        }
       } else {
         if ((*op)->left->dist.variance() < (*op)->right->dist.variance()) {
           adjust = &((*op)->left);
@@ -489,15 +501,15 @@ private:
     return left || right;
   }
 
-  bool find_peak_helper(X const & x, distribution<X> & dist, node * n) const {
+  bool find_peak_helper(X const & x, node *& found, node * n) const {
     static norm<X> norm;
     static std::minus<X> minus;
 
-    bool found = false;
     if (n->left == nullptr) return false;
 
-    auto left = norm(minus(n->left->dist.mean, dist.mean));
-    auto right = norm(minus(n->right->dist.mean, dist.mean));
+    //should this use probability of being
+    auto left = norm(minus(n->left->dist.mean, x));
+    auto right = norm(minus(n->right->dist.mean, x));
 
     node * chosen = n->left, * other = n->right;
     if(right < left) {
@@ -506,14 +518,14 @@ private:
     }
 
     if (chosen->error < n->error) {
-      dist = chosen->dist;
+      found = chosen;
       return true;
     } 
 
-    bool ret = find_peak_helper(x, dist, chosen);
+    bool ret = find_peak_helper(x, found, chosen);
 
     if (!ret && other->error < n->error) {
-      dist = chosen->dist;
+      found = chosen;
       return true;
     }
 
@@ -550,14 +562,18 @@ public:
     insert_helper(root, dist);
   }
 
-  distribution<X> find_peak(X const & x) {
-    distribution<X> ret(x);
+  pair<unsigned long, distribution<X>> find_peak(X const & x) {
+    node * n = nullptr;
+    pair<unsigned long, distribution<X>> ret{0, distribution<X>(x)};
 
     if (root == nullptr) {
       return ret;
     }
 
-    find_peak_helper(ret, root, 0.);
+    if (find_peak_helper(x, n, root)) {
+      return {n->id, n->dist};
+    }
+
     return ret;
   }
 
