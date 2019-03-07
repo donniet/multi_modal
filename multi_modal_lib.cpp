@@ -28,6 +28,16 @@ extern "C" {
         wrapper->ds->insert(std::vector<float>(sample, sample + dimensions));
     }
 
+    void mm_find_peak(
+        multi_modal_wrapper * wrapper, 
+        float * sample, size_t dimensions, 
+        distribution_wrapper ** dist_wrappers, size_t * wrapper_count) 
+    {
+        auto peak = wrapper->ds->find_peak(std::vector<float>(sample, sample + dimensions));
+        
+
+    }
+
     size_t mm_get_count(multi_modal_wrapper * wrapper) {
         return wrapper->ds->get_count();
     }
@@ -39,10 +49,11 @@ extern "C" {
 
         for(size_t i = 0; i < peaks.size(); i++) {
             (*wrappers)[i].mean = new float[wrapper->dimensions];
-            std::copy(peaks[i].mean.begin(), peaks[i].mean.end(), (*wrappers)[i].mean);
+            std::copy(peaks[i].second.mean.begin(), peaks[i].second.mean.end(), (*wrappers)[i].mean);
             (*wrappers)[i].mean_size = wrapper->dimensions;
-            (*wrappers)[i].standard_deviation = peaks[i].standard_deviation();
-            (*wrappers)[i].sample_count = peaks[i].count;
+            (*wrappers)[i].standard_deviation = peaks[i].second.standard_deviation();
+            (*wrappers)[i].sample_count = peaks[i].second.count;
+            (*wrappers)[i].id = peaks[i].first;
         }
     }
     void mm_destroy_peaks(multi_modal_wrapper * wrapper, distribution_wrapper * wrappers, size_t wrapper_count) {
