@@ -4,17 +4,17 @@ extern "C" {
 
     // typedef struct {
     //     mm_vector_float * ds;
-    //     size_t dimensions;
+    //     unsigned long dimensions;
     // } multi_modal_wrapper;
 
     // typedef struct {
     //     float * mean;
-    //     size_t mean_size;
+    //     unsigned long mean_size;
     //     float standard_deviation;
-    //     size_t sample_count;
+    //     unsigned long sample_count;
     // } distribution_wrapper;
 
-    multi_modal_wrapper * mm_create(size_t dimensions, size_t maximum_nodes) {
+    multi_modal_wrapper * mm_create(unsigned long dimensions, unsigned long maximum_nodes) {
         mm_vector_float * ds = new mm_vector_float(maximum_nodes);
         return new multi_modal_wrapper{ds, dimensions};
     }
@@ -24,30 +24,38 @@ extern "C" {
         delete wrapper;
     }
 
-    void mm_insert(multi_modal_wrapper * wrapper, float * sample, size_t dimensions) {
+    void mm_insert(multi_modal_wrapper * wrapper, float * sample, unsigned long dimensions) {
         wrapper->ds->insert(std::vector<float>(sample, sample + dimensions));
     }
 
     void mm_find_peak(
         multi_modal_wrapper * wrapper, 
-        float * sample, size_t dimensions, 
-        distribution_wrapper ** dist_wrappers, size_t * wrapper_count) 
+        float * sample, unsigned long dimensions, 
+        distribution_wrapper ** wrappers, unsigned long * wrapper_count) 
     {
         auto peak = wrapper->ds->find_peak(std::vector<float>(sample, sample + dimensions));
         
+        *wrappers = new distribution_wrapper[1];
+        *wrapper_count = 1;
 
+        (*wrappers)[0].mean = new float[wrapper->dimensions];
+        std::copy(peak.second.mean.begin(), peak.second.mean.end(), (*wrappers)[0].mean);
+        (*wrappers)[0].mean_size = wrapper->dimensions;
+        (*wrappers)[0].standard_deviation = peak.second.standard_deviation();
+        (*wrappers)[0].sample_count = peak.second.count;
+        (*wrappers)[0].id = peak.first;
     }
 
-    size_t mm_get_count(multi_modal_wrapper * wrapper) {
+    unsigned long mm_get_count(multi_modal_wrapper * wrapper) {
         return wrapper->ds->get_count();
     }
-    void mm_extract_peaks(multi_modal_wrapper * wrapper, distribution_wrapper ** wrappers, size_t * wrapper_count) {
+    void mm_extract_peaks(multi_modal_wrapper * wrapper, distribution_wrapper ** wrappers, unsigned long * wrapper_count) {
         auto peaks = wrapper->ds->extract_peaks();
 
         *wrappers = new distribution_wrapper[peaks.size()];
         *wrapper_count = peaks.size();
 
-        for(size_t i = 0; i < peaks.size(); i++) {
+        for(unsigned long i = 0; i < peaks.size(); i++) {
             (*wrappers)[i].mean = new float[wrapper->dimensions];
             std::copy(peaks[i].second.mean.begin(), peaks[i].second.mean.end(), (*wrappers)[i].mean);
             (*wrappers)[i].mean_size = wrapper->dimensions;
@@ -56,8 +64,8 @@ extern "C" {
             (*wrappers)[i].id = peaks[i].first;
         }
     }
-    void mm_destroy_peaks(multi_modal_wrapper * wrapper, distribution_wrapper * wrappers, size_t wrapper_count) {
-        for(size_t i = 0; i < wrapper_count; i++) {
+    void mm_destroy_peaks(multi_modal_wrapper * wrapper, distribution_wrapper * wrappers, unsigned long wrapper_count) {
+        for(unsigned long i = 0; i < wrapper_count; i++) {
             delete [] wrappers[i].mean;
         }
         delete [] wrappers;
