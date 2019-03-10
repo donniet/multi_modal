@@ -1,5 +1,7 @@
 #include "multi_modal_lib.h"
 
+#include <sstream>
+
 extern "C" {
 
     // typedef struct {
@@ -69,5 +71,27 @@ extern "C" {
             delete [] wrappers[i].mean;
         }
         delete [] wrappers;
+    }
+
+    void mm_serialize(multi_modal_wrapper * wrapper, char ** output_buf, unsigned long * output_size) {
+        std::stringstream ss;
+        wrapper->ds->serialize(ss);
+
+        auto s = ss.str();
+
+        *output_size = (unsigned long)s.length();
+
+        *output_buf = new char[s.length()];
+
+        std::copy(s.begin(), s.end(), *output_buf);
+
+    }
+    void mm_destroy_serialize_buffer(multi_modal_wrapper * wrapper, char * output_buf, unsigned long output_size) {
+        delete [] output_buf;
+    }
+    void mm_deserialize(multi_modal_wrapper * wrapper, char * input_buf, unsigned long input_size) {
+        std::stringstream ss(std::string(input_buf, input_size));
+
+        wrapper->ds->deserialize(ss);
     }
 }

@@ -26,5 +26,14 @@ unsigned long mm_get_count(multi_modal_wrapper * wrapper);
 void mm_extract_peaks(multi_modal_wrapper * wrapper, distribution_wrapper ** wrappers, unsigned long * wrapper_count);
 void mm_destroy_peaks(multi_modal_wrapper * wrapper, distribution_wrapper * wrappers, unsigned long wrapper_count);
 
+void mm_find_peak(
+        multi_modal_wrapper * wrapper, 
+        float * sample, unsigned long dimensions, 
+        distribution_wrapper ** wrappers, unsigned long * wrapper_count);
+
+void mm_serialize(multi_modal_wrapper * wrapper, char ** output_buf, unsigned long * output_size);
+void mm_destroy_serialize_buffer(multi_modal_wrapper * wrapper, char * output_buf, unsigned long output_size);
+void mm_deserialize(multi_modal_wrapper * wrapper, char * input_buf, unsigned long input_size);
+
 
 }
