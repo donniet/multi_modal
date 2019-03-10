@@ -91,6 +91,13 @@ template<typename X> struct distribution {
     return 1. - std::erf(norm(minus(mean, x)) / standard_deviation() / sqrt2);
   }
 
+  void serialize(std::ostream & os) const {
+    throw std::logic_error("not implemented");
+  }
+  void deserialize(std::istream & is) {
+    throw std::logic_error("not implemented");
+  }
+
   double density(double from_mean) const {
     if (m2 > 0)
       return std::exp(-from_mean * from_mean / variance() / 2.) / sqrt2 / sqrtpi / standard_deviation();
@@ -99,6 +106,35 @@ template<typename X> struct distribution {
     return 0.0;
   }
 };
+
+template<> void distribution<std::vector<double>>::serialize(std::ostream & os) const {
+  if (!os) return;
+
+  unsigned long siz = mean.size();
+  os.write((const char *)&siz, sizeof(unsigned long));
+  os.write((const char *)mean.data(), siz * sizeof(float));
+  os.write((const char *)&m2, sizeof(double));
+  os.write((const char *)&count, sizeof(unsigned long));
+
+  // std::cout << "size: " << siz << " m2: " << m2 << " count: " << count << std::endl;
+}
+
+template<> void distribution<std::vector<double>>::deserialize(std::istream & is) {
+  if (!is) return;
+
+  unsigned long siz = 0;
+  is.read((char *)&siz, sizeof(unsigned long));
+
+  // std::cerr << "vector size: " << siz << std::endl;
+
+  double * buf = new double[siz];
+  is.read((char *)buf, siz * sizeof(float));
+  is.read((char *)&m2, sizeof(double));
+  is.read((char *)&count, sizeof(unsigned long));
+  mean = std::vector<double>(buf, buf+siz);
+
+  delete [] buf;
+}
 
 // template<typename T> struct distribution<std::vector<T>> {
 //   std::vector<T> mean;
@@ -533,6 +569,13 @@ private:
   }
 
 public:
+  void deserialize(std::istream & is) {
+    throw std::logic_error("muti_modal<X>::deserialize not implemented");
+  }
+  void serialize(std::ostream & os) const {
+    throw std::logic_error("multi_modal<X>::serialize not implemented");
+  }
+
   std::vector<pair<unsigned long, distribution<X>>> extract_peaks() const {
     std::vector<pair<unsigned long, distribution<X>>> ret;
     extract_peaks_helper(ret, root, nullptr);
@@ -594,3 +637,118 @@ public:
     root = nullptr;
   }
 };
+
+template<> void multi_modal<std::vector<double>>::deserialize(std::istream & is) {
+  if (root != nullptr) {
+    delete_helper(root);
+    root = nullptr;
+  }
+  count = 0;
+  next_id = 0;
+
+  std::vector<pair<char, node*>> stack;
+
+  is.read((char*)&count, sizeof(unsigned long));
+  is.read((char*)&maximum_nodes, sizeof(unsigned long));
+  is.read((char*)&next_id, sizeof(unsigned long));
+
+  std::cout << "count: " << count << " maximum_nodes: " << maximum_nodes << " next_id: " << next_id << "\n";
+
+  if (count == 0) return;
+
+  root = new node();
+  root->left = nullptr;
+  root->right = nullptr;
+
+  root->dist.deserialize(is);
+  is.read((char*)&(root->error), sizeof(double));
+  is.read((char*)&(root->id), sizeof(unsigned long));
+
+  char dir = 'L';
+  node * cur = root;
+  node * n = nullptr;
+  
+  while (is) {
+    is.read(&dir, 1);
+
+    switch (dir) {
+    case 'L':
+      stack.push_back({'L', cur});
+      n = new node();
+      n->left = nullptr;
+      n->right = nullptr;
+      n->dist.deserialize(is);
+      is.read((char*)&(n->error), sizeof(double));
+      is.read((char*)&(n->id), sizeof(unsigned long));
+      cur->left = n;
+      cur = n;
+      break;
+    case 'R':
+      stack.push_back({'R', cur});
+      n = new node();
+      n->left = nullptr;
+      n->right = nullptr;
+      n->dist.deserialize(is);
+      is.read((char*)&(n->error), sizeof(double));
+      is.read((char*)&(n->id), sizeof(unsigned long));
+      cur->right = n;
+      cur = n;
+      break;
+    case 'P':
+      cur = stack.back().second;
+      stack.pop_back();
+      break;
+    default:
+      throw std::logic_error("direction not understood");
+    }
+  }
+}
+
+template<> void multi_modal<std::vector<double>>::serialize(std::ostream & os) const {
+  std::vector<pair<char, node const *>> stack;
+
+  os.write((const char *)&count, sizeof(unsigned long));
+  os.write((const char *)&maximum_nodes, sizeof(unsigned long));
+  os.write((const char *)&next_id, sizeof(unsigned long));
+
+  if (root == nullptr) return;
+
+  std::cout << "root\n";
+  root->dist.serialize(os);
+  os.write((const char *)&(root->error), sizeof(double));
+  os.write((const char *)&(root->id), sizeof(unsigned long));
+  stack.push_back({'L', root});
+
+  char pop = 'P';
+
+  while(!stack.empty()) {
+    auto p = stack.back();
+    stack.pop_back();
+
+    if (p.first == 'L' && p.second->left != nullptr) {
+      std::cout << "left\n";
+      stack.push_back({'R', p.second});
+
+      os.write(&p.first, 1);
+      p.second->left->dist.serialize(os);
+      os.write((const char *)&(p.second->left->error), sizeof(double));
+      os.write((const char *)&(p.second->left->id), sizeof(unsigned long));
+
+      stack.push_back({'L', p.second->left});
+    } else if (p.first == 'R' && p.second->right != nullptr) {
+      std::cout << "right\n";
+      stack.push_back({'P', p.second});
+      os.write(&p.first, 1);
+
+      p.second->right->dist.serialize(os);
+      os.write((const char *)&(p.second->right->error), sizeof(double));
+      os.write((const char *)&(p.second->right->id), sizeof(unsigned long));
+
+      stack.push_back({'L', p.second->right});
+    } else {
+      std::cout << "pop\n";
+      os.write(&pop, 1);
+    }
+
+  } 
+}

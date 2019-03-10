@@ -46,7 +46,7 @@ void test_multi_modal() {
     //     }
     // }
 
-    multi_modal<std::vector<double>> mm(1000);
+    multi_modal<std::vector<double>> mm(10);
 
     std::vector<double> v(2);
     std::string col = "red";
@@ -119,8 +119,30 @@ void test_multi_modal() {
             stream << "</svg>\n";
         }
     }
-    
 
+    auto peaks = mm.extract_peaks();
+    for(auto const & p : peaks) {
+        auto d = p.second;
+
+        std::cout << "peak " << p.first << " (" << d.mean[0] << " " << d.mean[1] << " / " << d.standard_deviation() << ")\n";
+    }
+
+    std::fstream fs;
+    fs.open("serialize.multimodal", std::ios_base::trunc | std::ios_base::binary | std::ios_base::out);
+
+    mm.serialize(fs);
+    fs.close();
+
+    fs.open("serialize.multimodal", std::ios_base::in | std::ios_base::binary);
+    mm.deserialize(fs);
+    fs.close();
+
+    peaks = mm.extract_peaks();
+    for(auto const & p : peaks) {
+        auto d = p.second;
+
+        std::cout << "peak " << p.first << " (" << d.mean[0] << " " << d.mean[1] << " / " << d.standard_deviation() << ")\n";
+    }
 
     // mm.visit_children([](auto const & parent, auto const & left, auto const & right, size_t depth) {
     //     for(int d = (int)depth; d > 0; d-=1) std::cout << " ";
