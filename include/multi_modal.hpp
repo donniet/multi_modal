@@ -158,7 +158,7 @@ template<> void distribution<std::vector<float>>::deserialize(std::istream & is)
 
   // std::cerr << "vector size: " << siz << std::endl;
 
-  double * buf = new double[siz];
+  float * buf = new float[siz];
   is.read((char *)buf, siz * sizeof(float));
   is.read((char *)&m2, sizeof(double));
   is.read((char *)&count, sizeof(unsigned long));
