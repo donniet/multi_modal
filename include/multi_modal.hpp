@@ -704,7 +704,124 @@ template<> void multi_modal<std::vector<double>>::deserialize(std::istream & is)
   }
 }
 
+
+template<> void multi_modal<std::vector<float>>::deserialize(std::istream & is) {
+  if (root != nullptr) {
+    delete_helper(root);
+    root = nullptr;
+  }
+  count = 0;
+  next_id = 0;
+
+  std::vector<pair<char, node*>> stack;
+
+  is.read((char*)&count, sizeof(unsigned long));
+  is.read((char*)&maximum_nodes, sizeof(unsigned long));
+  is.read((char*)&next_id, sizeof(unsigned long));
+
+  std::cout << "count: " << count << " maximum_nodes: " << maximum_nodes << " next_id: " << next_id << "\n";
+
+  if (count == 0) return;
+
+  root = new node();
+  root->left = nullptr;
+  root->right = nullptr;
+
+  root->dist.deserialize(is);
+  is.read((char*)&(root->error), sizeof(double));
+  is.read((char*)&(root->id), sizeof(unsigned long));
+
+  char dir = 'L';
+  node * cur = root;
+  node * n = nullptr;
+  
+  while (is) {
+    is.read(&dir, 1);
+
+    switch (dir) {
+    case 'L':
+      stack.push_back({'L', cur});
+      n = new node();
+      n->left = nullptr;
+      n->right = nullptr;
+      n->dist.deserialize(is);
+      is.read((char*)&(n->error), sizeof(double));
+      is.read((char*)&(n->id), sizeof(unsigned long));
+      cur->left = n;
+      cur = n;
+      break;
+    case 'R':
+      stack.push_back({'R', cur});
+      n = new node();
+      n->left = nullptr;
+      n->right = nullptr;
+      n->dist.deserialize(is);
+      is.read((char*)&(n->error), sizeof(double));
+      is.read((char*)&(n->id), sizeof(unsigned long));
+      cur->right = n;
+      cur = n;
+      break;
+    case 'P':
+      cur = stack.back().second;
+      stack.pop_back();
+      break;
+    default:
+      throw std::logic_error("direction not understood");
+    }
+  }
+}
+
 template<> void multi_modal<std::vector<double>>::serialize(std::ostream & os) const {
+  std::vector<pair<char, node const *>> stack;
+
+  os.write((const char *)&count, sizeof(unsigned long));
+  os.write((const char *)&maximum_nodes, sizeof(unsigned long));
+  os.write((const char *)&next_id, sizeof(unsigned long));
+
+  if (root == nullptr) return;
+
+  std::cout << "root\n";
+  root->dist.serialize(os);
+  os.write((const char *)&(root->error), sizeof(double));
+  os.write((const char *)&(root->id), sizeof(unsigned long));
+  stack.push_back({'L', root});
+
+  char pop = 'P';
+
+  while(!stack.empty()) {
+    auto p = stack.back();
+    stack.pop_back();
+
+    if (p.first == 'L' && p.second->left != nullptr) {
+      std::cout << "left\n";
+      stack.push_back({'R', p.second});
+
+      os.write(&p.first, 1);
+      p.second->left->dist.serialize(os);
+      os.write((const char *)&(p.second->left->error), sizeof(double));
+      os.write((const char *)&(p.second->left->id), sizeof(unsigned long));
+
+      stack.push_back({'L', p.second->left});
+    } else if (p.first == 'R' && p.second->right != nullptr) {
+      std::cout << "right\n";
+      stack.push_back({'P', p.second});
+      os.write(&p.first, 1);
+
+      p.second->right->dist.serialize(os);
+      os.write((const char *)&(p.second->right->error), sizeof(double));
+      os.write((const char *)&(p.second->right->id), sizeof(unsigned long));
+
+      stack.push_back({'L', p.second->right});
+    } else {
+      std::cout << "pop\n";
+      os.write(&pop, 1);
+    }
+
+  } 
+}
+
+
+template<> void multi_modal<std::vector<float>>::serialize(std::ostream & os) const {
   std::vector<pair<char, node const *>> stack;
 
   os.write((const char *)&count, sizeof(unsigned long));
