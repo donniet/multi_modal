@@ -112,6 +112,19 @@ template<> void distribution<std::vector<double>>::serialize(std::ostream & os) 
 
   unsigned long siz = mean.size();
   os.write((const char *)&siz, sizeof(unsigned long));
+  os.write((const char *)mean.data(), siz * sizeof(double));
+  os.write((const char *)&m2, sizeof(double));
+  os.write((const char *)&count, sizeof(unsigned long));
+
+  // std::cout << "size: " << siz << " m2: " << m2 << " count: " << count << std::endl;
+}
+
+
+template<> void distribution<std::vector<float>>::serialize(std::ostream & os) const {
+  if (!os) return;
+
+  unsigned long siz = mean.size();
+  os.write((const char *)&siz, sizeof(unsigned long));
   os.write((const char *)mean.data(), siz * sizeof(float));
   os.write((const char *)&m2, sizeof(double));
   os.write((const char *)&count, sizeof(unsigned long));
@@ -119,7 +132,25 @@ template<> void distribution<std::vector<double>>::serialize(std::ostream & os) 
   // std::cout << "size: " << siz << " m2: " << m2 << " count: " << count << std::endl;
 }
 
+
 template<> void distribution<std::vector<double>>::deserialize(std::istream & is) {
+  if (!is) return;
+
+  unsigned long siz = 0;
+  is.read((char *)&siz, sizeof(unsigned long));
+
+  // std::cerr << "vector size: " << siz << std::endl;
+
+  double * buf = new double[siz];
+  is.read((char *)buf, siz * sizeof(double));
+  is.read((char *)&m2, sizeof(double));
+  is.read((char *)&count, sizeof(unsigned long));
+  mean = std::vector<double>(buf, buf+siz);
+
+  delete [] buf;
+}
+
+template<> void distribution<std::vector<float>>::deserialize(std::istream & is) {
   if (!is) return;
 
   unsigned long siz = 0;
@@ -131,7 +162,7 @@ template<> void distribution<std::vector<double>>::deserialize(std::istream & is
   is.read((char *)buf, siz * sizeof(float));
   is.read((char *)&m2, sizeof(double));
   is.read((char *)&count, sizeof(unsigned long));
-  mean = std::vector<double>(buf, buf+siz);
+  mean = std::vector<float>(buf, buf+siz);
 
   delete [] buf;
 }
