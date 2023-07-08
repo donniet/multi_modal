@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <tuple>
 #include <map>
+#include <random>
 
 using std::pair;
 
@@ -441,6 +442,9 @@ template<typename X> class multi_modal {
   unsigned long maximum_nodes;
   unsigned long count;
   unsigned long next_id;
+  std::random_device rd;
+  std::minstd_rand gen; // good enough random generator
+  std::uniform_real_distribution<> coin;
 private:
   void insert_helper(node * n, distribution<X> const & dist) {
     static norm<X> norm;
@@ -464,10 +468,31 @@ private:
 
     node ** op, ** other, ** adjust;
 
+
     auto left = norm(minus(n->left->dist.mean, dist.mean));
     auto right = norm(minus(n->right->dist.mean, dist.mean));
 
-    if (left < right) {
+    // if (left < right) {
+    //   op = &(n->left);
+    //   other = &(n->right);
+    // } else {
+    //   op = &(n->right);
+    //   other = &(n->left);
+    // }
+
+    auto dl = n->left->dist.density(left);
+    auto dr = n->right->dist.density(right);
+
+    // choose probabalisitically
+    auto r = coin(gen);
+
+    // if either are degenerate, just make it a coin toss
+    if (dl < 1e-10 || dr < 1e-10) {
+      dl = 0.5;
+      dr = 0.5;
+    }
+
+    if (r * (dl + dr) < dl) {
       op = &(n->left);
       other = &(n->right);
     } else {
@@ -543,7 +568,7 @@ private:
   }
 
   bool extract_peaks_helper(std::vector<pair<unsigned long, distribution<X>>> & peaks, node * cur, node * parent) const {
-    if (parent != nullptr && cur->error < parent->error) {
+    if (parent != nullptr && cur->error < 0.01 * parent->error) {
       peaks.push_back({cur->id, cur->dist});
       return true;
     }
@@ -731,7 +756,7 @@ public:
 
   void insert(X const & x) {
     distribution<X> dist(x);
-
+    
     if (root == nullptr) {
       root = new node{dist, 0, nullptr, nullptr};
       return;
@@ -757,11 +782,11 @@ public:
   unsigned long get_count() const { return count; }
 
   multi_modal(unsigned long max) 
-    : root(nullptr), maximum_nodes(max), count(0), next_id(0)
+    : root(nullptr), maximum_nodes(max), count(0), next_id(0), rd(), gen(rd()), coin(0., 1.)
   {}
 
   multi_modal() 
-    : multi_modal(std::numeric_limits<unsigned long>::max()) 
+    : multi_modal(std::numeric_limits<unsigned long>::max())
   {}
 
   ~multi_modal() { 

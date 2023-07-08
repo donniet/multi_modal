@@ -3,6 +3,9 @@
 #include <sstream>
 #include <iomanip>
 #include <random>
+#include <list>
+#include <numeric>
+#include <iterator>
 
 #include "multi_modal.hpp"
 
@@ -10,11 +13,14 @@ using std::pair;
 
 void test_distributions();
 void test_multi_modal();
+void test_many_distributions();
 
 
 int main(int argc, char * argv[]) {
     // test_distributions();
-    test_multi_modal();
+    // test_multi_modal();
+
+    test_many_distributions();
 
     return 0;
 }
@@ -26,6 +32,181 @@ std::ostream & operator<<(std::ostream & os, std::vector<double> const & o) {
         os << x << " ";
     }
     return os << "]";
+}
+
+template<typename X>
+double dist(X const & left, X const & right) {
+    return std::abs(left - right);
+}
+
+template<typename T>
+double dist(distribution<T> const & left, distribution<T> const & right) {
+    return dist(left.mean, right.mean);
+}
+
+template<typename T>
+double dist(T const & left_mean, distribution<T> const & right) {
+    return dist(left_mean, right.mean);
+}
+
+
+template<typename T>
+double dist(distribution<T> const & left, T const & right_mean) {
+    return dist(left.mean, right_mean);
+}
+
+
+
+template<typename T>
+double dist(std::vector<T> const & left, std::vector<T> const & right) {
+    if (left.size() != right.size()) 
+        throw std::logic_error("sizes must be equal");
+
+    T sum = 0.;
+    for(int i = 0; i < left.size(); i++) {
+        T d = left[i] - right[i];
+        sum += d * d;
+    }
+
+    return (double)std::sqrt(sum);
+}
+
+template<typename X>
+double matched_distance(std::vector<distribution<X>> left, std::vector<distribution<X>> right) {
+    // brute force for now
+    
+    double total = 0.;
+    std::vector<distribution<X>> const * smaller = &left, * larger = &right;
+    if(smaller->size() > larger->size()) {
+        std::swap(smaller, larger);
+    }
+
+    int i = 0;
+    for(; i < larger->size(); i++) {
+        double min_distance = std::numeric_limits<double>::max();
+        int min_index = -1;
+
+        for(int j = 0; j < smaller->size(); j++) {
+            double d = dist((*smaller)[i], (*larger)[j]);
+
+            if(d < min_distance) {
+                min_index = j;
+                min_distance = d;
+            }
+        }
+        // don't remove this one for now-- i dont' know how do deal with the two vectors being different sizes yet.
+
+        total += min_distance;
+    }
+
+    return total;
+}
+
+void test_many_distributions() {
+    const int iterations = 10;
+    const int to_insert = 1000000;
+    const int output_every = 10000;
+    const int max_peaks = 4;
+    const int peaks = 4;
+
+    std::random_device rd{};
+    std::mt19937 gen{rd()};
+    std::uniform_real_distribution<> means(-1, 1);
+    std::uniform_real_distribution<> stds(0.000001, 0.0001);
+    std::uniform_real_distribution<> weights(0.1, 1);
+    
+    for(int i = 0; i < iterations; i++) {
+        multi_modal<double> mm(max_peaks);
+
+        std::list<std::pair<double, std::normal_distribution<>>> dists;
+        std::vector<double> my_means;
+        double total_weight = 0.;
+        for(int j = 0; j < peaks; j++) {
+            auto w = weights(gen);
+            // double w = 1.;
+            total_weight += w;
+            auto m = means(gen);
+            auto s = stds(gen);
+
+            dists.push_back({w, std::normal_distribution<>{m, s}});
+            my_means.push_back(m);
+        }
+        // normalize
+        for(auto & p : dists) {
+            p.first /= total_weight;
+        }
+
+
+        for(int k = 0; k < to_insert; k++) {
+            // choose a random peak:
+            auto w = weights(gen);
+
+            auto l = dists.begin();
+            for(int m = 0; m < dists.size()-1; m++, l++) {
+                w -= l->first;
+                if(w < 0) {
+                    break;
+                }
+            }
+
+            // generate random number from peak
+            auto val = l->second(gen);
+
+            // insert into multi_modal
+            mm.insert(val);
+
+            if(k % output_every == 0) {
+                auto peaks = mm.extract_peaks();
+
+                std::vector<distribution<double>> p;
+                std::vector<distribution<double>> q;
+
+                std::transform(my_means.begin(), my_means.end(), std::back_inserter(q), [](auto const & tup) {
+                    distribution<double> r;
+                    r.mean = tup;
+                    r.m2 = 1;
+                    r.count = 1;
+                    return r;
+                });
+
+                std::transform(peaks.begin(), peaks.end(), std::back_inserter(p), [](auto const & tup) {
+                    return tup.second;
+                });
+
+                double dist = matched_distance(p, q);
+
+                std::cout << i << "\t" << k << "\t" << dist << "\n";
+            }
+        }
+
+
+        auto peaks = mm.extract_peaks();
+
+        std::vector<decltype(peaks)::value_type> vp(peaks.begin(), peaks.end());
+        std::vector<decltype(dists)::value_type> vd(dists.begin(), dists.end());
+
+        std::cout << "dists\t";
+        std::sort(vd.begin(), vd.end(), [](auto const & l, auto const & r) -> bool {
+            return l.second.mean() < r.second.mean();
+        });
+        std::sort(vp.begin(), vp.end(), [](auto const & l, auto const & r) -> bool {
+            return l.second.mean < r.second.mean;
+        });
+
+        std::for_each(vd.begin(), vd.end(), [](auto const & p) {
+            std::cout << "\n\t(" << p.second.mean() << ";" << p.second.stddev() << ")*" << p.first;
+        });
+        std::cout << "\n"
+                  << "found\t";
+
+        double total = 0.;
+        std::for_each(peaks.begin(), peaks.end(), [&total](auto const & p) { total += p.second.count; });
+
+        std::for_each(vp.begin(), vp.end(), [total](auto const & p) {
+            std::cout << "\n\t(" << p.second.mean << ";" << p.second.standard_deviation() << ")*" << p.second.count/total;
+        });
+        std::cout << "\n\n";
+    }
 }
 
 void test_multi_modal() {
